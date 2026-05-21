@@ -1,0 +1,6 @@
+flask
+python-dotenv
+pywinauto
+pyautogui
+pyperclip
+python-docx
