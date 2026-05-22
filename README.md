@@ -13,7 +13,7 @@ POST http://localhost:5000/ask
         ↓
 AI Gateway Server (Flask + Queue)
         ↓
-Controls AI Desktop App (Claude / ChatGPT / DeepSeek)
+Controls AI Desktop App (Claude / ChatGPT / DeepSeek / Gemini)
         ↓
 Returns reply as JSON
 ```
@@ -28,7 +28,7 @@ One request at a time via queue. Works locally or publicly via ngrok.
 - Python 3.10+
 - Claude desktop app installed and logged in
 - ChatGPT desktop app installed and logged in
-- Google Chrome installed and logged in to DeepSeek
+- Google Chrome installed and logged in to DeepSeek and Gemini
 - (Optional) ngrok for public access
 
 ---
@@ -51,6 +51,11 @@ One request at a time via queue. Works locally or publicly via ngrok.
 1. Open Google Chrome
 2. Go to https://chat.deepseek.com
 3. Log in with your DeepSeek account and stay logged in
+
+**Gemini**
+1. Open Google Chrome
+2. Go to https://gemini.google.com
+3. Log in with your Google account and stay logged in
 
 ### Step 2 — Download AI Gateway
 ```bash
@@ -102,6 +107,10 @@ $r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
 # DeepSeek
 $r = Invoke-WebRequest -Uri "http://localhost:5000/ask" -Method POST -ContentType "application/json" -Body '{"query": "What is AI?", "ai": "deepseek", "mode": "incognito"}' -UseBasicParsing
 $r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
+
+# Gemini
+$r = Invoke-WebRequest -Uri "http://localhost:5000/ask" -Method POST -ContentType "application/json" -Body '{"query": "What is AI?", "ai": "gemini", "mode": "incognito"}' -UseBasicParsing
+$r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
 ```
 
 ### From any app (Python example)
@@ -118,6 +127,10 @@ print(response.json()["reply"])
 
 # DeepSeek
 response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "deepseek", "mode": "incognito"})
+print(response.json()["reply"])
+
+# Gemini
+response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "gemini", "mode": "incognito"})
 print(response.json()["reply"])
 ```
 
@@ -171,7 +184,7 @@ Send a query and get a reply.
 `ai` and `mode` are optional — defaults set in `.env`.
 
 **Supported values:**
-- `ai`: `claude`, `chatgpt`, `deepseek`
+- `ai`: `claude`, `chatgpt`, `deepseek`, `gemini`
 - `mode`: `incognito`
 
 **Response:**
@@ -204,8 +217,10 @@ ai-gateway/
     │   └── incognito.py   # Claude incognito handler
     ├── chatgpt/
     │   └── incognito.py   # ChatGPT temporary chat handler
-    └── deepseek/
-        └── incognito.py   # DeepSeek web handler
+    ├── deepseek/
+    │   └── incognito.py   # DeepSeek web handler
+    └── gemini/
+        └── incognito.py   # Gemini web handler
 ```
 
 ---
@@ -239,6 +254,13 @@ CHROME_PATH=C:\Your\Path\To\chrome.exe
 ```
 Also make sure you are logged in to DeepSeek at https://chat.deepseek.com in Chrome.
 
+**Gemini not opening**
+Make sure Google Chrome is installed at the default path. If not, add to `.env`:
+```
+CHROME_PATH=C:\Your\Path\To\chrome.exe
+```
+Also make sure you are logged in at https://gemini.google.com in Chrome.
+
 **Port already in use**
 Change `PORT` in `.env` and restart server.
 
@@ -252,7 +274,6 @@ Make sure the relevant desktop app is open and logged in before starting the ser
 - [x] Claude incognito mode
 - [x] ChatGPT incognito mode
 - [x] DeepSeek incognito mode
-- [ ] Claude stateless mode
+- [x] Gemini incognito mode
 - [ ] Claude stateful mode
-- [ ] Gemini support
 - [ ] Browser UI improvements
