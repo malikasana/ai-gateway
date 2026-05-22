@@ -276,7 +276,7 @@
         <div class="selector" id="ai-selector">
             <button class="sel-btn active" data-ai="claude">Claude</button>
             <button class="sel-btn" data-ai="chatgpt">ChatGPT</button>
-            <button class="sel-btn disabled" data-ai="deepseek" disabled>DeepSeek</button>
+            <button class="sel-btn" data-ai="deepseek">DeepSeek</button>
             <button class="sel-btn disabled" data-ai="gemini" disabled>Gemini</button>
         </div>
     </div>
@@ -319,7 +319,6 @@
     let selectedAI = 'claude';
     let selectedMode = 'incognito';
 
-    // AI selector
     document.getElementById('ai-selector').addEventListener('click', (e) => {
         const btn = e.target.closest('.sel-btn');
         if (!btn || btn.classList.contains('disabled')) return;
@@ -329,7 +328,6 @@
         updateBadge();
     });
 
-    // Mode selector
     document.getElementById('mode-selector').addEventListener('click', (e) => {
         const btn = e.target.closest('.sel-btn');
         if (!btn || btn.classList.contains('disabled')) return;
@@ -345,13 +343,11 @@
         statusBadge.textContent = `${aiLabel} · ${modeLabel}`;
     }
 
-    // Auto resize textarea
     queryBox.addEventListener('input', () => {
         queryBox.style.height = 'auto';
         queryBox.style.height = Math.min(queryBox.scrollHeight, 120) + 'px';
     });
 
-    // Send on Enter (Shift+Enter for newline)
     queryBox.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
