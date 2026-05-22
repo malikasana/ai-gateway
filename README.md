@@ -13,6 +13,8 @@ POST http://localhost:5000/ask
         ↓
 AI Gateway Server (Flask + Queue)
         ↓
+Auto-detects OS → routes to correct handler
+        ↓
 Controls AI Desktop App (Claude / ChatGPT / DeepSeek / Gemini)
         ↓
 Returns reply as JSON
@@ -24,7 +26,7 @@ One request at a time via queue. Works locally or publicly via ngrok.
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 (Mac support coming soon)
 - Python 3.10+
 - Claude desktop app installed and logged in
 - ChatGPT desktop app installed and logged in
@@ -206,7 +208,7 @@ Send a query and get a reply.
 ```
 ai-gateway/
 ├── server.py              # Main Flask server
-├── queue_manager.py       # Request queue and routing
+├── queue_manager.py       # Request queue, OS routing
 ├── .env                   # Your config (not committed)
 ├── .env.example           # Config template
 ├── requirements.txt       # Dependencies
@@ -214,13 +216,25 @@ ai-gateway/
 │   └── index.html         # Browser UI
 └── instances/
     ├── claude/
-    │   └── incognito.py   # Claude incognito handler
+    │   ├── windows/
+    │   │   └── incognito.py   # Claude Windows handler
+    │   └── mac/
+    │       └── incognito.py   # Claude Mac handler (coming soon)
     ├── chatgpt/
-    │   └── incognito.py   # ChatGPT temporary chat handler
+    │   ├── windows/
+    │   │   └── incognito.py   # ChatGPT Windows handler
+    │   └── mac/
+    │       └── incognito.py   # ChatGPT Mac handler (coming soon)
     ├── deepseek/
-    │   └── incognito.py   # DeepSeek web handler
+    │   ├── windows/
+    │   │   └── incognito.py   # DeepSeek Windows handler
+    │   └── mac/
+    │       └── incognito.py   # DeepSeek Mac handler (coming soon)
     └── gemini/
-        └── incognito.py   # Gemini web handler
+        ├── windows/
+        │   └── incognito.py   # Gemini Windows handler
+        └── mac/
+            └── incognito.py   # Gemini Mac handler (coming soon)
 ```
 
 ---
@@ -271,9 +285,10 @@ Make sure the relevant desktop app is open and logged in before starting the ser
 
 ## Roadmap
 
-- [x] Claude incognito mode
-- [x] ChatGPT incognito mode
-- [x] DeepSeek incognito mode
-- [x] Gemini incognito mode
-- [ ] Claude stateful mode
+- [x] Claude incognito mode — Windows
+- [x] ChatGPT incognito mode — Windows
+- [x] DeepSeek incognito mode — Windows
+- [x] Gemini incognito mode — Windows
+- [ ] Mac support for all AIs
+- [ ] Stateful mode for persistent conversations
 - [ ] Browser UI improvements

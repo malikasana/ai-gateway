@@ -2,6 +2,7 @@ import threading
 import queue
 import importlib
 import os
+import platform
 
 # ── Single request queue — one at a time ──────────────────
 _queue = queue.Queue()
@@ -10,15 +11,16 @@ _lock = threading.Lock()
 def _get_handler(ai: str, mode: str):
     """
     Dynamically load the correct instance handler.
-    Path: instances/{ai}/{mode}.py
+    Path: instances/{ai}/{os}/{mode}.py
     Each handler must implement: run(query, **kwargs) -> str
     """
+    os_name = "windows" if platform.system() == "Windows" else "mac"
     try:
-        module = importlib.import_module(f"instances.{ai}.{mode}")
+        module = importlib.import_module(f"instances.{ai}.{os_name}.{mode}")
         return module.run
     except ModuleNotFoundError:
-        raise Exception(f"No handler found for ai='{ai}' mode='{mode}'. "
-                       f"Expected: instances/{ai}/{mode}.py")
+        raise Exception(f"No handler found for ai='{ai}' mode='{mode}' os='{os_name}'. "
+                       f"Expected: instances/{ai}/{os_name}/{mode}.py")
 
 def process_request(ai: str, mode: str, query: str, **kwargs) -> str:
     """
