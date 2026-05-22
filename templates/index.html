@@ -18,26 +18,89 @@
         }
 
         header {
-            padding: 16px 20px;
+            padding: 12px 20px;
             background: #1a1a1a;
             border-bottom: 1px solid #2a2a2a;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         header h1 {
             font-size: 18px;
             font-weight: 600;
             color: #fff;
+            margin-right: 8px;
         }
 
-        .badge {
+        .selector-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .selector-label {
+            font-size: 11px;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .selector {
+            display: flex;
+            gap: 4px;
+        }
+
+        .sel-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: #2a2a2a;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .sel-btn:hover:not(.disabled) {
+            border-color: #555;
+            color: #ccc;
+        }
+
+        .sel-btn.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+
+        .sel-btn.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .sel-btn.disabled::after {
+            content: 'soon';
+            font-size: 9px;
+            margin-left: 4px;
+            color: #666;
+        }
+
+        .divider {
+            width: 1px;
+            height: 20px;
+            background: #2a2a2a;
+            margin: 0 4px;
+        }
+
+        .status-badge {
             font-size: 11px;
             background: #2a2a2a;
             color: #888;
             padding: 3px 8px;
             border-radius: 20px;
+            margin-left: auto;
         }
 
         #chat {
@@ -105,10 +168,7 @@
             margin: 8px 0;
         }
 
-        .assistant pre code {
-            background: none;
-            padding: 0;
-        }
+        .assistant pre code { background: none; padding: 0; }
 
         .assistant strong { color: #fff; }
 
@@ -170,7 +230,6 @@
         }
 
         #query:focus { border-color: #2563eb; }
-
         #query::placeholder { color: #555; }
 
         #send {
@@ -189,7 +248,6 @@
 
         #send:hover { background: #1d4ed8; }
         #send:disabled { background: #1a2a4a; cursor: not-allowed; }
-
         #send svg { width: 18px; height: 18px; fill: white; }
 
         .empty {
@@ -210,7 +268,31 @@
 
 <header>
     <h1>AI Gateway</h1>
-    <span class="badge">Claude · Incognito</span>
+
+    <div class="divider"></div>
+
+    <div class="selector-group">
+        <span class="selector-label">AI</span>
+        <div class="selector" id="ai-selector">
+            <button class="sel-btn active" data-ai="claude">Claude</button>
+            <button class="sel-btn" data-ai="chatgpt">ChatGPT</button>
+            <button class="sel-btn disabled" data-ai="deepseek" disabled>DeepSeek</button>
+            <button class="sel-btn disabled" data-ai="gemini" disabled>Gemini</button>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="selector-group">
+        <span class="selector-label">Mode</span>
+        <div class="selector" id="mode-selector">
+            <button class="sel-btn active" data-mode="incognito">Incognito</button>
+            <button class="sel-btn disabled" data-mode="stateless" disabled>Stateless</button>
+            <button class="sel-btn disabled" data-mode="stateful" disabled>Stateful</button>
+        </div>
+    </div>
+
+    <span class="status-badge" id="status-badge">Claude · Incognito</span>
 </header>
 
 <div id="chat">
@@ -232,6 +314,36 @@
     const queryBox = document.getElementById('query');
     const sendBtn = document.getElementById('send');
     const empty = document.getElementById('empty');
+    const statusBadge = document.getElementById('status-badge');
+
+    let selectedAI = 'claude';
+    let selectedMode = 'incognito';
+
+    // AI selector
+    document.getElementById('ai-selector').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sel-btn');
+        if (!btn || btn.classList.contains('disabled')) return;
+        document.querySelectorAll('#ai-selector .sel-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedAI = btn.dataset.ai;
+        updateBadge();
+    });
+
+    // Mode selector
+    document.getElementById('mode-selector').addEventListener('click', (e) => {
+        const btn = e.target.closest('.sel-btn');
+        if (!btn || btn.classList.contains('disabled')) return;
+        document.querySelectorAll('#mode-selector .sel-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedMode = btn.dataset.mode;
+        updateBadge();
+    });
+
+    function updateBadge() {
+        const aiLabel = selectedAI.charAt(0).toUpperCase() + selectedAI.slice(1);
+        const modeLabel = selectedMode.charAt(0).toUpperCase() + selectedMode.slice(1);
+        statusBadge.textContent = `${aiLabel} · ${modeLabel}`;
+    }
 
     // Auto resize textarea
     queryBox.addEventListener('input', () => {
@@ -262,10 +374,11 @@
     }
 
     function addThinking() {
+        const aiLabel = selectedAI.charAt(0).toUpperCase() + selectedAI.slice(1);
         const div = document.createElement('div');
         div.className = 'thinking';
         div.id = 'thinking';
-        div.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Claude is thinking...</span>';
+        div.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span>${aiLabel} is thinking...</span>`;
         chat.appendChild(div);
         chat.scrollTop = chat.scrollHeight;
     }
@@ -290,7 +403,7 @@
             const res = await fetch('/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query, ai: selectedAI, mode: selectedMode })
             });
             const data = await res.json();
             removeThinking();
