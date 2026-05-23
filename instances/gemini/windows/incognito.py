@@ -1,9 +1,10 @@
 """
-instances/gemini/incognito.py
+instances/gemini/windows/incognito.py
 
 Gemini Web — Incognito-style Mode Handler
 - Opens Chrome with existing signed-in Google session
-- Sends query, waits for reply, extracts text
+- Sends query, waits for reply
+- Scrolls to bottom, clicks last Copy button
 - Deletes chat, closes window
 
 Entry point: run(query, **kwargs) -> str
@@ -24,13 +25,6 @@ pyautogui.FAILSAFE = False
 
 CHROME_PATH = os.getenv("CHROME_PATH", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 GEMINI_URL  = "https://gemini.google.com/app"
-
-IGNORE = [
-    "Conversation with Gemini",
-    "Gemini said",
-    "Gemini is AI and can make mistakes.",
-    "Ask Gemini",
-]
 
 
 def open_gemini():
@@ -93,50 +87,59 @@ def wait_for_reply():
     raise Exception("Timeout: Gemini did not finish within 120 seconds")
 
 
-def get_reply(win, query):
+def scroll_to_bottom():
+    print("  Scrolling to bottom...")
     win = get_gemini_window()
+    win.set_focus()
+    time.sleep(0.5)
 
-    text_elems = []
-    for elem in win.descendants(control_type="Text"):
+    # Use window rect to find visible center
+    win_rect = win.rectangle()
+    cx = (win_rect.left + win_rect.right) // 2
+    cy = (win_rect.top + win_rect.bottom) // 2
+
+    print(f"  Clicking window center at ({cx}, {cy})")
+    pyautogui.click(cx, cy)
+    time.sleep(1)
+
+    pyautogui.press('end')
+    time.sleep(2)
+    print("  Scrolled to bottom")
+
+
+def copy_last_reply():
+    print("  Looking for Copy button...")
+    win = get_gemini_window()
+    pyperclip.copy("")
+    time.sleep(0.5)
+
+    copy_buttons = []
+    for btn in win.descendants(control_type="Button"):
         try:
-            name = elem.window_text().strip()
-            cls  = elem.element_info.class_name or ""
-            # Skip UI chrome and user query bubbles
-            if not name:
-                continue
-            if name in IGNORE:
-                continue
-            if len(name) <= 5:
-                continue
-            if "query-text" in cls:
-                continue
-            text_elems.append(name)
+            if btn.window_text().strip() == "Copy":
+                copy_buttons.append(btn)
         except:
             pass
 
-    # Only keep text inside model-response-message-content groups
-    reply_parts = []
-    for elem in win.descendants(control_type="Group"):
-        try:
-            aid = elem.element_info.automation_id or ""
-            if aid.startswith("model-response-message-content"):
-                for child in elem.descendants(control_type="Text"):
-                    try:
-                        name = child.window_text().strip()
-                        if name and len(name) > 1:
-                            reply_parts.append(name)
-                    except:
-                        pass
-        except:
-            pass
+    print(f"  Found {len(copy_buttons)} Copy buttons")
 
-    # Fallback to text_elems if model-response extraction got nothing
-    if not reply_parts:
-        reply_parts = text_elems
+    if not copy_buttons:
+        print("  No Copy button found!")
+        return ""
 
-    reply = '\n\n'.join(reply_parts)
-    print(f"  Extracted {len(reply)} chars")
-    return reply
+    btn = copy_buttons[-1]
+    rect = btn.rectangle()
+    cx = (rect.left + rect.right) // 2
+    cy = (rect.top + rect.bottom) // 2
+    print(f"  Clicking Copy at ({cx}, {cy})")
+    pyautogui.moveTo(cx, cy, duration=0.5)
+    time.sleep(0.8)
+    pyautogui.click(cx, cy)
+    time.sleep(1.5)
+
+    result = pyperclip.paste()
+    print(f"  Copied {len(result)} chars")
+    return result
 
 
 def delete_chat():
@@ -145,7 +148,6 @@ def delete_chat():
     win.set_focus()
     time.sleep(0.5)
 
-    # Click conversation actions menu
     for btn in win.descendants(control_type="Button"):
         try:
             if btn.window_text().strip() == "Open menu for conversation actions.":
@@ -155,7 +157,6 @@ def delete_chat():
         except:
             pass
 
-    # Click Delete menu item
     win = get_gemini_window()
     for elem in win.descendants(control_type="MenuItem"):
         try:
@@ -166,7 +167,6 @@ def delete_chat():
         except:
             pass
 
-    # Confirm deletion in dialog
     win = get_gemini_window()
     for btn in win.descendants(control_type="Button"):
         try:
@@ -199,9 +199,10 @@ def run(query: str, **kwargs) -> str:
         time.sleep(1)
 
         send_query(win, query)
-        win = wait_for_reply()
+        wait_for_reply()
 
-        reply = get_reply(win, query)
+        scroll_to_bottom()
+        reply = copy_last_reply()
 
         delete_chat()
         close_gemini()

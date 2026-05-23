@@ -1,5 +1,5 @@
 """
-instances/deepseek/incognito.py
+instances/deepseek/windows/incognito.py
 
 DeepSeek Web — Incognito-style Mode Handler
 - Opens Chrome with existing signed-in session
@@ -10,6 +10,7 @@ Entry point: run(query, **kwargs) -> str
 """
 
 import time
+import re
 import subprocess
 import pyperclip
 import pyautogui
@@ -26,7 +27,7 @@ CHROME_PATH = os.getenv("CHROME_PATH", r"C:\Program Files\Google\Chrome\Applicat
 DEEPSEEK_URL = "https://chat.deepseek.com"
 
 IGNORE = [
-    'New chat', 'Ctrl + J', 'Today', '7 Days', '30 Days',
+    'New chat', 'Ctrl + J', 'Today', 'Yesterday', '7 Days', '30 Days',
     '2026-04', '2026-03', '2026-02', '2026-01',
     'Instant', 'Expert', 'DeepThink', 'Search',
     'AI-generated, for reference only',
@@ -75,58 +76,6 @@ def click_new_chat():
     raise Exception("New chat button not found!")
 
 
-def delete_current_chat():
-    print("  Deleting chat...")
-    win = get_deepseek_window()
-    win.set_focus()
-    time.sleep(0.5)
-
-    for elem in win.descendants(control_type="Hyperlink"):
-        try:
-            name = elem.window_text().strip()
-            if name and "deepseek" not in name.lower() and len(name) > 3:
-                rect = elem.rectangle()
-                cx = (rect.left + rect.right) // 2
-                cy = (rect.top + rect.bottom) // 2
-                pyautogui.moveTo(cx, cy, duration=0.5)
-                time.sleep(1)
-
-                win = get_deepseek_window()
-                for btn in win.descendants(control_type="Button"):
-                    try:
-                        b_rect = btn.rectangle()
-                        if abs(b_rect.top - rect.top) < 20 and btn.window_text() == '':
-                            btn.click_input()
-                            time.sleep(1)
-                            break
-                    except:
-                        pass
-
-                win = get_deepseek_window()
-                for e in win.descendants(control_type="Text"):
-                    try:
-                        if e.window_text().strip() == 'Delete':
-                            e.click_input()
-                            time.sleep(1)
-                            break
-                    except:
-                        pass
-
-                win = get_deepseek_window()
-                for btn in win.descendants(control_type="Button"):
-                    try:
-                        if btn.window_text().strip() == 'Delete chat':
-                            btn.click_input()
-                            time.sleep(1)
-                            print("  Chat deleted!")
-                            return
-                    except:
-                        pass
-                break
-        except:
-            pass
-
-
 def send_query(win, query):
     print(f"  Sending: {query[:60]}...")
     input_box = find_input_box(win)
@@ -160,28 +109,113 @@ def wait_for_reply():
 def get_reply(win, query):
     win = get_deepseek_window()
 
-    text_elems = []
+    # Collect all Text elements with position info
+    # Only keep reply content — left > 600 filters out sidebar
+    raw = []
     for elem in win.descendants(control_type="Text"):
         try:
             name = elem.window_text().strip()
-            if name and name not in IGNORE and len(name) > 5:
-                text_elems.append(name)
+            rect = elem.rectangle()
+            if not name:
+                continue
+            if name in IGNORE:
+                continue
+            if rect.left < 600:
+                continue
+            raw.append((rect.top, rect.left, name))
         except:
             pass
 
-    # Skip title and user query, everything after is the reply
-    reply_parts = []
+    # Sort by top then left
+    raw.sort(key=lambda x: (x[0], x[1]))
+
+    # Skip user query — everything before and including it
     found_query = False
-    for t in text_elems:
+    filtered = []
+    for top, left, text in raw:
         if not found_query:
-            if query[:20] in t or t in query:
+            if query[:20] in text or text in query:
                 found_query = True
             continue
-        reply_parts.append(t)
+        filtered.append((top, left, text))
 
-    reply = '\n\n'.join(reply_parts)
+    # Group by top — same top = same line
+    from collections import defaultdict
+    lines = defaultdict(list)
+    for top, left, text in filtered:
+        lines[top].append((left, text))
+
+    # Build reply line by line
+    reply_lines = []
+    for top in sorted(lines.keys()):
+        parts = sorted(lines[top], key=lambda x: x[0])
+        line = ' '.join(p[1] for p in parts)
+        reply_lines.append(line)
+
+    reply = '\n'.join(reply_lines)
+
+    # Clean up web search noise
+    reply = re.sub(r'^Read \d+ web pages\s*', '', reply).strip()
+    reply = re.sub(r'\s*\d+ web pages$', '', reply).strip()
+
     print(f"  Copied {len(reply)} chars")
     return reply
+
+
+def delete_current_chat():
+    print("  Deleting chat...")
+    win = get_deepseek_window()
+    win.set_focus()
+    time.sleep(0.5)
+
+    # Find active chat by unique class b64fb9ae
+    for elem in win.descendants(control_type="Hyperlink"):
+        try:
+            cls = elem.element_info.class_name or ""
+            if "b64fb9ae" in cls:
+                rect = elem.rectangle()
+                cx = (rect.left + rect.right) // 2
+                cy = (rect.top + rect.bottom) // 2
+                pyautogui.moveTo(cx, cy, duration=0.5)
+                time.sleep(1)
+
+                # Click the three-dot button that appears on hover
+                win = get_deepseek_window()
+                for btn in win.descendants(control_type="Button"):
+                    try:
+                        b_rect = btn.rectangle()
+                        if abs(b_rect.top - rect.top) < 20 and btn.window_text() == '':
+                            btn.click_input()
+                            time.sleep(1)
+                            break
+                    except:
+                        pass
+
+                # Click Delete in dropdown
+                win = get_deepseek_window()
+                for e in win.descendants(control_type="Text"):
+                    try:
+                        if e.window_text().strip() == 'Delete':
+                            e.click_input()
+                            time.sleep(1)
+                            break
+                    except:
+                        pass
+
+                # Confirm deletion
+                win = get_deepseek_window()
+                for btn in win.descendants(control_type="Button"):
+                    try:
+                        if btn.window_text().strip() == 'Delete chat':
+                            btn.click_input()
+                            time.sleep(1)
+                            print("  Chat deleted!")
+                            return
+                    except:
+                        pass
+                break
+        except:
+            pass
 
 
 def close_deepseek():
