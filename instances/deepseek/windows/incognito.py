@@ -4,7 +4,7 @@ instances/deepseek/windows/incognito.py
 DeepSeek Web — Incognito-style Mode Handler
 - Opens Chrome with existing signed-in session
 - Creates new chat for every request
-- Sends query, gets reply, deletes chat, closes window
+- Sends query, gets reply, copies reply, deletes chat, closes window
 
 Entry point: run(query, **kwargs) -> str
 """
@@ -25,15 +25,6 @@ pyautogui.FAILSAFE = False
 
 CHROME_PATH = os.getenv("CHROME_PATH", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 DEEPSEEK_URL = "https://chat.deepseek.com"
-
-IGNORE = [
-    'New chat', 'Ctrl + J', 'Today', 'Yesterday', '7 Days', '30 Days',
-    '2026-04', '2026-03', '2026-02', '2026-01',
-    'Instant', 'Expert', 'DeepThink', 'Search',
-    'AI-generated, for reference only',
-    'This response is AI-generated, for reference only.',
-    'Muhammad Ali Kasana'
-]
 
 
 def open_deepseek():
@@ -106,60 +97,49 @@ def wait_for_reply():
         time.sleep(0.5)
 
 
-def get_reply(win, query):
+def copy_reply():
+    print("  Copying reply...")
     win = get_deepseek_window()
+    pyperclip.copy("")
+    time.sleep(0.3)
 
-    # Collect all Text elements with position info
-    # Only keep reply content — left > 600 filters out sidebar
-    raw = []
-    for elem in win.descendants(control_type="Text"):
+    # Find all nameless buttons with class db183363
+    # Group by top value — highest top = last reply
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for btn in win.descendants(control_type="Button"):
         try:
-            name = elem.window_text().strip()
-            rect = elem.rectangle()
-            if not name:
-                continue
-            if name in IGNORE:
-                continue
-            if rect.left < 600:
-                continue
-            raw.append((rect.top, rect.left, name))
+            cls  = btn.element_info.class_name or ""
+            name = btn.window_text().strip()
+            if "db183363" in cls and name == "":
+                rect = btn.rectangle()
+                groups[rect.top].append((rect.left, btn))
         except:
             pass
 
-    # Sort by top then left
-    raw.sort(key=lambda x: (x[0], x[1]))
+    if not groups:
+        print("  No copy buttons found!")
+        return ""
 
-    # Skip user query — everything before and including it
-    found_query = False
-    filtered = []
-    for top, left, text in raw:
-        if not found_query:
-            if query[:20] in text or text in query:
-                found_query = True
-            continue
-        filtered.append((top, left, text))
+    # Get the group with highest top — last reply
+    last_top = max(groups.keys())
+    buttons_in_group = sorted(groups[last_top], key=lambda x: x[0])
 
-    # Group by top — same top = same line
-    from collections import defaultdict
-    lines = defaultdict(list)
-    for top, left, text in filtered:
-        lines[top].append((left, text))
+    # First button in group is always Copy
+    copy_btn = buttons_in_group[0][1]
+    rect = copy_btn.rectangle()
+    cx = (rect.left + rect.right) // 2
+    cy = (rect.top + rect.bottom) // 2
 
-    # Build reply line by line
-    reply_lines = []
-    for top in sorted(lines.keys()):
-        parts = sorted(lines[top], key=lambda x: x[0])
-        line = ' '.join(p[1] for p in parts)
-        reply_lines.append(line)
+    print(f"  Clicking Copy at ({cx}, {cy})")
+    pyautogui.moveTo(cx, cy, duration=0.5)
+    time.sleep(0.8)
+    pyautogui.click(cx, cy)
+    time.sleep(1.5)
 
-    reply = '\n'.join(reply_lines)
-
-    # Clean up web search noise
-    reply = re.sub(r'^Read \d+ web pages\s*', '', reply).strip()
-    reply = re.sub(r'\s*\d+ web pages$', '', reply).strip()
-
-    print(f"  Copied {len(reply)} chars")
-    return reply
+    result = pyperclip.paste()
+    print(f"  Copied {len(result)} chars")
+    return result
 
 
 def delete_current_chat():
@@ -241,9 +221,9 @@ def run(query: str, **kwargs) -> str:
 
         win = get_deepseek_window()
         send_query(win, query)
-        win = wait_for_reply()
+        wait_for_reply()
 
-        reply = get_reply(win, query)
+        reply = copy_reply()
 
         delete_current_chat()
         close_deepseek()
