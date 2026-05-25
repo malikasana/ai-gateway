@@ -3,16 +3,27 @@ instances/browser.py
 
 Shared browser launcher utility.
 All instances import from here instead of hardcoding Chrome.
+Auto-detects OS — user only needs to touch .env if Chrome
+is not in the default installation path.
 """
 
 import os
+import sys
 import subprocess
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BROWSER_PATH = os.getenv("BROWSER_PATH", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 BROWSER = os.getenv("BROWSER", "chrome").lower()
+
+if sys.platform == "win32":
+    DEFAULT_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+elif sys.platform == "darwin":
+    DEFAULT_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+else:
+    DEFAULT_PATH = "google-chrome"
+
+BROWSER_PATH = os.getenv("BROWSER_PATH", DEFAULT_PATH)
 
 WINDOW_CLASS = {
     "chrome": "Chrome_WidgetWin_1",
