@@ -20,3 +20,4 @@ __pycache__/
 ngrok.exe
 deepseek_profile/
 node_modules/
+auth_info/

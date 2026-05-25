@@ -28,6 +28,7 @@ One request at a time via queue. Works locally or publicly via ngrok.
 - Python 3.10+
 - Chrome, Edge, or Firefox installed
 - Signed in to all AI services you want to use in your browser
+- (Optional) Node.js for WhatsApp integration
 - (Optional) ngrok for public access
 
 ---
@@ -110,25 +111,52 @@ $r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
 ```python
 import requests
 
-# Claude
 response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "claude", "mode": "incognito"})
 print(response.json()["reply"])
+```
 
-# ChatGPT
-response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "chatgpt", "mode": "incognito"})
-print(response.json()["reply"])
+---
 
-# DeepSeek
-response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "deepseek", "mode": "incognito"})
-print(response.json()["reply"])
+## WhatsApp Integration
 
-# Gemini
-response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "gemini", "mode": "incognito"})
-print(response.json()["reply"])
+AI Gateway can be triggered from WhatsApp using the Baileys library. Once connected, send messages to yourself (or any chat) using the `\gateway` prefix and the server will respond via WhatsApp.
 
-# Grok
-response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "grok", "mode": "incognito"})
-print(response.json()["reply"])
+### Setup
+
+**1. Install Node.js dependencies**
+```bash
+npm install
+```
+
+**2. Run the WhatsApp bridge** (while server is running in another terminal)
+```bash
+node whatsapp.js
+```
+
+**3. Scan the QR code** that appears in the terminal with your WhatsApp app.
+
+Once connected, the bridge will automatically reconnect if the connection drops. Your session is saved in `auth_info/` so you only need to scan once.
+
+### Usage
+
+Send a message starting with `\gateway` followed by your query:
+
+```
+\gateway What is the capital of France?
+```
+
+By default this uses the `DEFAULT_AI` and `DEFAULT_MODE` set in `.env`. You can override per message:
+
+```
+\gateway [ai:chatgpt] [mode:incognito] Explain quantum computing
+\gateway [ai:grok] Who are you?
+\gateway [ai:deepseek] Write a Python hello world
+```
+
+### How It Works
+
+```
+WhatsApp message → Baileys bridge → POST /ask → AI Gateway → reply sent back to WhatsApp
 ```
 
 ---
@@ -204,9 +232,11 @@ Send a query and get a reply.
 ai-gateway/
 ├── server.py              # Main Flask server
 ├── queue_manager.py       # Request queue and routing
+├── whatsapp.js            # WhatsApp bridge (Node.js)
+├── package.json           # Node.js dependencies
 ├── .env                   # Your config (not committed)
 ├── .env.example           # Config template
-├── requirements.txt       # Dependencies
+├── requirements.txt       # Python dependencies
 ├── templates/
 │   └── index.html         # Browser UI
 └── instances/
@@ -242,6 +272,9 @@ BROWSER_PATH=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
 **AI not found / not signed in**
 Make sure you are signed in to the AI service in your browser before starting the server. AI Gateway reuses your existing browser session.
 
+**WhatsApp not connecting**
+Make sure Node.js is installed and you have run `npm install`. Delete the `auth_info/` folder and restart to get a fresh QR code.
+
 **Port already in use**
 Change `PORT` in `.env` and restart server.
 
@@ -258,6 +291,7 @@ Make sure you are signed in to the relevant AI in your browser. The server opens
 - [x] Gemini incognito mode
 - [x] Grok incognito mode
 - [x] Multi-browser support (Chrome, Edge, Firefox)
+- [x] WhatsApp integration (via Baileys)
 - [ ] Mac support
 - [ ] Stateful mode for persistent conversations
 - [ ] Browser UI improvements
