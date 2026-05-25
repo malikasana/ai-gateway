@@ -19,3 +19,4 @@ __pycache__/
 # ngrok
 ngrok.exe
 deepseek_profile/
+node_modules/

@@ -1,40 +1,36 @@
 """
-instances/gemini/windows/incognito.py
+instances/gemini/incognito.py
 
 Gemini Web — Incognito-style Mode Handler
-- Opens Chrome with existing signed-in Google session
-- Sends query, waits for reply
-- Scrolls to bottom, clicks last Copy button
-- Deletes chat, closes window
+- Opens browser with existing signed-in Google session
+- Sends query, waits for reply, copies, deletes chat, closes window
 
 Entry point: run(query, **kwargs) -> str
 """
 
 import time
-import subprocess
 import pyperclip
 import pyautogui
 import pythoncom
-import os
 from pywinauto import Desktop
 from dotenv import load_dotenv
+from instances.browser import open_browser, get_window_class
 
 load_dotenv()
 
 pyautogui.FAILSAFE = False
 
-CHROME_PATH = os.getenv("CHROME_PATH", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
-GEMINI_URL  = "https://gemini.google.com/app"
+GEMINI_URL = "https://gemini.google.com/app"
 
 
 def open_gemini():
     print("  Opening Gemini...")
-    subprocess.Popen(f'"{CHROME_PATH}" --new-window {GEMINI_URL}', shell=True)
+    open_browser(GEMINI_URL)
     time.sleep(10)
 
 
 def get_gemini_window():
-    wins = Desktop(backend="uia").windows(class_name="Chrome_WidgetWin_1")
+    wins = Desktop(backend="uia").windows(class_name=get_window_class())
     for w in wins:
         if "Gemini" in w.window_text():
             return w
@@ -92,19 +88,13 @@ def scroll_to_bottom():
     win = get_gemini_window()
     win.set_focus()
     time.sleep(0.5)
-
-    # Use window rect to find visible center
     win_rect = win.rectangle()
     cx = (win_rect.left + win_rect.right) // 2
     cy = (win_rect.top + win_rect.bottom) // 2
-
-    print(f"  Clicking window center at ({cx}, {cy})")
     pyautogui.click(cx, cy)
     time.sleep(1)
-
     pyautogui.press('end')
     time.sleep(2)
-    print("  Scrolled to bottom")
 
 
 def copy_last_reply():
@@ -124,14 +114,12 @@ def copy_last_reply():
     print(f"  Found {len(copy_buttons)} Copy buttons")
 
     if not copy_buttons:
-        print("  No Copy button found!")
         return ""
 
     btn = copy_buttons[-1]
     rect = btn.rectangle()
     cx = (rect.left + rect.right) // 2
     cy = (rect.top + rect.bottom) // 2
-    print(f"  Clicking Copy at ({cx}, {cy})")
     pyautogui.moveTo(cx, cy, duration=0.5)
     time.sleep(0.8)
     pyautogui.click(cx, cy)
@@ -187,10 +175,6 @@ def close_gemini():
 
 
 def run(query: str, **kwargs) -> str:
-    """
-    Entry point called by queue_manager.
-    Receives query, returns reply as string.
-    """
     pythoncom.CoInitialize()
     try:
         open_gemini()

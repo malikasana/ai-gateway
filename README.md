@@ -1,6 +1,6 @@
 # AI Gateway
 
-A local AI bridge server that lets your applications talk to AI models without API keys or costs. Uses desktop app automation to send queries and return replies over HTTP.
+A local HTTP server that lets your applications talk to AI models without API keys or costs. Uses browser automation to send queries and return replies over HTTP.
 
 ---
 
@@ -13,9 +13,7 @@ POST http://localhost:5000/ask
         ↓
 AI Gateway Server (Flask + Queue)
         ↓
-Auto-detects OS → routes to correct handler
-        ↓
-Controls AI Desktop App (Claude / ChatGPT / DeepSeek / Gemini)
+Opens AI in your browser (already signed in)
         ↓
 Returns reply as JSON
 ```
@@ -26,38 +24,27 @@ One request at a time via queue. Works locally or publicly via ngrok.
 
 ## Requirements
 
-- Windows 10/11 (Mac support coming soon)
+- Windows 10/11
 - Python 3.10+
-- Claude desktop app installed and logged in
-- ChatGPT desktop app installed and logged in
-- Google Chrome installed and logged in to DeepSeek and Gemini
+- Chrome, Edge, or Firefox installed
+- Signed in to all AI services you want to use in your browser
 - (Optional) ngrok for public access
 
 ---
 
 ## Setup
 
-### Step 1 — Download and install AI apps
+### Step 1 — Sign in to AI services in your browser
 
-**Claude**
-1. Go to https://claude.ai/download
-2. Download the Windows desktop app
-3. Install it and log in with your Anthropic account
+Open your browser and sign in to whichever AIs you want to use:
 
-**ChatGPT**
-1. Go to https://openai.com/chatgpt/download
-2. Download the Windows desktop app
-3. Install it and log in with your OpenAI account
+- **Claude** → https://claude.ai
+- **ChatGPT** → https://chatgpt.com
+- **DeepSeek** → https://chat.deepseek.com
+- **Gemini** → https://gemini.google.com
+- **Grok** → https://grok.com
 
-**DeepSeek**
-1. Open Google Chrome
-2. Go to https://chat.deepseek.com
-3. Log in with your DeepSeek account and stay logged in
-
-**Gemini**
-1. Open Google Chrome
-2. Go to https://gemini.google.com
-3. Log in with your Google account and stay logged in
+Stay signed in — AI Gateway will open these in new windows automatically.
 
 ### Step 2 — Download AI Gateway
 ```bash
@@ -113,6 +100,10 @@ $r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
 # Gemini
 $r = Invoke-WebRequest -Uri "http://localhost:5000/ask" -Method POST -ContentType "application/json" -Body '{"query": "What is AI?", "ai": "gemini", "mode": "incognito"}' -UseBasicParsing
 $r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
+
+# Grok
+$r = Invoke-WebRequest -Uri "http://localhost:5000/ask" -Method POST -ContentType "application/json" -Body '{"query": "What is AI?", "ai": "grok", "mode": "incognito"}' -UseBasicParsing
+$r.Content | ConvertFrom-Json | Select-Object -ExpandProperty reply
 ```
 
 ### From any app (Python example)
@@ -133,6 +124,10 @@ print(response.json()["reply"])
 
 # Gemini
 response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "gemini", "mode": "incognito"})
+print(response.json()["reply"])
+
+# Grok
+response = requests.post("http://localhost:5000/ask", json={"query": "What is AI?", "ai": "grok", "mode": "incognito"})
 print(response.json()["reply"])
 ```
 
@@ -186,7 +181,7 @@ Send a query and get a reply.
 `ai` and `mode` are optional — defaults set in `.env`.
 
 **Supported values:**
-- `ai`: `claude`, `chatgpt`, `deepseek`, `gemini`
+- `ai`: `claude`, `chatgpt`, `deepseek`, `gemini`, `grok`
 - `mode`: `incognito`
 
 **Response:**
@@ -208,87 +203,61 @@ Send a query and get a reply.
 ```
 ai-gateway/
 ├── server.py              # Main Flask server
-├── queue_manager.py       # Request queue, OS routing
+├── queue_manager.py       # Request queue and routing
 ├── .env                   # Your config (not committed)
 ├── .env.example           # Config template
 ├── requirements.txt       # Dependencies
 ├── templates/
 │   └── index.html         # Browser UI
 └── instances/
+    ├── browser.py         # Shared browser launcher utility
     ├── claude/
-    │   ├── windows/
-    │   │   └── incognito.py   # Claude Windows handler
-    │   └── mac/
-    │       └── incognito.py   # Claude Mac handler (coming soon)
+    │   └── incognito.py   # Claude web handler
     ├── chatgpt/
-    │   ├── windows/
-    │   │   └── incognito.py   # ChatGPT Windows handler
-    │   └── mac/
-    │       └── incognito.py   # ChatGPT Mac handler (coming soon)
+    │   └── incognito.py   # ChatGPT web handler
     ├── deepseek/
-    │   ├── windows/
-    │   │   └── incognito.py   # DeepSeek Windows handler
-    │   └── mac/
-    │       └── incognito.py   # DeepSeek Mac handler (coming soon)
-    └── gemini/
-        ├── windows/
-        │   └── incognito.py   # Gemini Windows handler
-        └── mac/
-            └── incognito.py   # Gemini Mac handler (coming soon)
+    │   └── incognito.py   # DeepSeek web handler
+    ├── gemini/
+    │   └── incognito.py   # Gemini web handler
+    └── grok/
+        └── incognito.py   # Grok web handler
 ```
 
 ---
 
 ## Troubleshooting
 
-**Claude app not found**
-Run in PowerShell:
-```powershell
-Get-StartApps | Where-Object { $_.Name -like "*Claude*" }
+**Browser not opening / wrong browser**
+Set your browser path in `.env`:
 ```
-Copy the `AppID` value and add to `.env`:
+BROWSER=chrome
+BROWSER_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
 ```
-CLAUDE_APP_ID=your_app_id_here
+For Edge:
 ```
-
-**ChatGPT app not found**
-Run in PowerShell:
-```powershell
-Get-StartApps | Where-Object { $_.Name -like "*ChatGPT*" }
-```
-Copy the `AppID` value and add to `.env`:
-```
-CHATGPT_APP_ID=your_app_id_here
+BROWSER=edge
+BROWSER_PATH=C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
 ```
 
-**DeepSeek not opening**
-Make sure Google Chrome is installed at the default path. If not, add to `.env`:
-```
-CHROME_PATH=C:\Your\Path\To\chrome.exe
-```
-Also make sure you are logged in to DeepSeek at https://chat.deepseek.com in Chrome.
-
-**Gemini not opening**
-Make sure Google Chrome is installed at the default path. If not, add to `.env`:
-```
-CHROME_PATH=C:\Your\Path\To\chrome.exe
-```
-Also make sure you are logged in at https://gemini.google.com in Chrome.
+**AI not found / not signed in**
+Make sure you are signed in to the AI service in your browser before starting the server. AI Gateway reuses your existing browser session.
 
 **Port already in use**
 Change `PORT` in `.env` and restart server.
 
 **Request stuck / not responding**
-Make sure the relevant desktop app is open and logged in before starting the server.
+Make sure you are signed in to the relevant AI in your browser. The server opens a new browser window automatically.
 
 ---
 
 ## Roadmap
 
-- [x] Claude incognito mode — Windows
-- [x] ChatGPT incognito mode — Windows
-- [x] DeepSeek incognito mode — Windows
-- [x] Gemini incognito mode — Windows
-- [ ] Mac support for all AIs
+- [x] Claude incognito mode
+- [x] ChatGPT incognito mode
+- [x] DeepSeek incognito mode
+- [x] Gemini incognito mode
+- [x] Grok incognito mode
+- [x] Multi-browser support (Chrome, Edge, Firefox)
+- [ ] Mac support
 - [ ] Stateful mode for persistent conversations
 - [ ] Browser UI improvements

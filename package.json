@@ -1,0 +1,26 @@
+{
+  "name": "ai-gateway",
+  "version": "1.0.0",
+  "description": "A local AI bridge server that lets your applications talk to AI models without API keys or costs. Uses desktop app automation to send queries and return replies over HTTP.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/malikasana/ai-gateway.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/malikasana/ai-gateway/issues"
+  },
+  "homepage": "https://github.com/malikasana/ai-gateway#readme",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "node-fetch": "^2.7.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

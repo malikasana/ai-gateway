@@ -1,11 +1,10 @@
 """
-instances/claude/incognito.py
+instances/grok/incognito.py
 
-Claude Web — Incognito Mode Handler
-- Opens claude.ai in browser with existing signed-in session
-- Enables incognito via Ctrl+Shift+I
-- Input already focused, paste and Enter to send
-- Waits for reply, scrolls, copies, closes window
+Grok Web — Private Chat Mode Handler
+- Opens browser with existing signed-in session
+- Enables private chat via Ctrl+Shift+J
+- Sends query, waits for reply, copies it, closes window
 
 Entry point: run(query, **kwargs) -> str
 """
@@ -22,37 +21,41 @@ load_dotenv()
 
 pyautogui.FAILSAFE = False
 
-CLAUDE_URL = "https://claude.ai/new"
+GROK_URL = "https://grok.com"
 
 
-def open_claude():
-    print("  Opening Claude...")
-    open_browser(CLAUDE_URL)
-    time.sleep(5)
+def open_grok():
+    print("  Opening Grok...")
+    open_browser(GROK_URL)
+    time.sleep(4)
 
 
-def get_claude_window():
+def get_grok_window():
     wins = Desktop(backend="uia").windows(class_name=get_window_class())
     for w in wins:
-        if "Claude" in w.window_text():
+        if "Grok" in w.window_text():
             return w
-    raise Exception("Claude window not found!")
+    raise Exception("Grok window not found!")
 
 
-def enable_incognito():
-    print("  Enabling incognito...")
-    win = get_claude_window()
+def enable_private_chat():
+    print("  Enabling private chat...")
+    win = get_grok_window()
     win.set_focus()
     time.sleep(0.5)
-    pyautogui.hotkey('ctrl', 'shift', 'i')
-    time.sleep(2)
-    print("  Incognito enabled!")
+    pyautogui.hotkey('ctrl', 'shift', 'j')
+    time.sleep(1)
+    print("  Private chat enabled!")
 
 
 def send_query(win, query):
     print(f"  Sending: {query[:60]}...")
     win.set_focus()
     time.sleep(0.5)
+    pyautogui.hotkey('ctrl', 'a')
+    time.sleep(0.2)
+    pyautogui.press('delete')
+    time.sleep(0.3)
     pyperclip.copy(query)
     pyautogui.hotkey('ctrl', 'v')
     time.sleep(0.5)
@@ -64,45 +67,38 @@ def wait_for_reply():
     time.sleep(2)
     while True:
         try:
-            win = get_claude_window()
+            win = get_grok_window()
             for btn in win.descendants(control_type="Button"):
                 try:
-                    if btn.window_text() == "Use voice mode":
+                    if btn.window_text() == "Regenerate":
                         print("  Reply complete!")
                         time.sleep(1)
-                        return get_claude_window()
+                        return get_grok_window()
                 except:
                     pass
         except:
             pass
-        time.sleep(1)
+        time.sleep(0.5)
 
 
 def scroll_to_bottom(win):
-    win = get_claude_window()
+    win = get_grok_window()
     win.set_focus()
     time.sleep(0.5)
-    while True:
-        pyautogui.press('tab')
-        time.sleep(0.3)
-        win = get_claude_window()
-        for elem in win.descendants():
-            try:
-                if elem.has_keyboard_focus():
-                    if "Add files" in elem.window_text():
-                        print("  Scrolling to bottom...")
-                        pyautogui.press('end')
-                        time.sleep(1.5)
-                        return
-            except:
-                pass
+    rect = win.rectangle()
+    cx = (rect.left + rect.right) // 2
+    cy = (rect.top + rect.bottom) // 2
+    pyautogui.click(cx, cy)
+    time.sleep(0.5)
+    pyautogui.press('end')
+    time.sleep(1.5)
 
 
 def copy_last_reply(win):
     scroll_to_bottom(win)
     time.sleep(1)
 
-    win = get_claude_window()
+    win = get_grok_window()
     pyperclip.copy("")
     time.sleep(0.3)
 
@@ -132,33 +128,29 @@ def copy_last_reply(win):
     return ""
 
 
-def close_claude():
-    print("  Closing Claude...")
-    win = get_claude_window()
+def close_grok():
+    print("  Closing Grok...")
+    win = get_grok_window()
     win.close()
     time.sleep(1)
 
 
 def run(query: str, **kwargs) -> str:
-    """
-    Entry point called by queue_manager.
-    Receives query, returns reply as string.
-    """
     pythoncom.CoInitialize()
     try:
-        open_claude()
-        win = get_claude_window()
+        open_grok()
+        win = get_grok_window()
         win.set_focus()
         time.sleep(1)
 
-        enable_incognito()
+        enable_private_chat()
 
-        win = get_claude_window()
+        win = get_grok_window()
         send_query(win, query)
         win = wait_for_reply()
         reply = copy_last_reply(win)
 
-        close_claude()
+        close_grok()
         return reply
 
     finally:

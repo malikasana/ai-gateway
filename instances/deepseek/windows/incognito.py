@@ -1,8 +1,8 @@
 """
-instances/deepseek/windows/incognito.py
+instances/deepseek/incognito.py
 
 DeepSeek Web — Incognito-style Mode Handler
-- Opens Chrome with existing signed-in session
+- Opens browser with existing signed-in session
 - Creates new chat for every request
 - Sends query, gets reply, copies reply, deletes chat, closes window
 
@@ -10,31 +10,29 @@ Entry point: run(query, **kwargs) -> str
 """
 
 import time
-import re
-import subprocess
 import pyperclip
 import pyautogui
 import pythoncom
-import os
+from collections import defaultdict
 from pywinauto import Desktop
 from dotenv import load_dotenv
+from instances.browser import open_browser, get_window_class
 
 load_dotenv()
 
 pyautogui.FAILSAFE = False
 
-CHROME_PATH = os.getenv("CHROME_PATH", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 DEEPSEEK_URL = "https://chat.deepseek.com"
 
 
 def open_deepseek():
     print("  Opening DeepSeek...")
-    subprocess.Popen(f'"{CHROME_PATH}" --new-window {DEEPSEEK_URL}', shell=True)
+    open_browser(DEEPSEEK_URL)
     time.sleep(4)
 
 
 def get_deepseek_window():
-    wins = Desktop(backend="uia").windows(class_name="Chrome_WidgetWin_1")
+    wins = Desktop(backend="uia").windows(class_name=get_window_class())
     for w in wins:
         if "DeepSeek" in w.window_text():
             return w
@@ -103,13 +101,10 @@ def copy_reply():
     pyperclip.copy("")
     time.sleep(0.3)
 
-    # Find all nameless buttons with class db183363
-    # Group by top value — highest top = last reply
-    from collections import defaultdict
     groups = defaultdict(list)
     for btn in win.descendants(control_type="Button"):
         try:
-            cls  = btn.element_info.class_name or ""
+            cls = btn.element_info.class_name or ""
             name = btn.window_text().strip()
             if "db183363" in cls and name == "":
                 rect = btn.rectangle()
@@ -121,17 +116,13 @@ def copy_reply():
         print("  No copy buttons found!")
         return ""
 
-    # Get the group with highest top — last reply
     last_top = max(groups.keys())
     buttons_in_group = sorted(groups[last_top], key=lambda x: x[0])
-
-    # First button in group is always Copy
     copy_btn = buttons_in_group[0][1]
     rect = copy_btn.rectangle()
     cx = (rect.left + rect.right) // 2
     cy = (rect.top + rect.bottom) // 2
 
-    print(f"  Clicking Copy at ({cx}, {cy})")
     pyautogui.moveTo(cx, cy, duration=0.5)
     time.sleep(0.8)
     pyautogui.click(cx, cy)
@@ -148,7 +139,6 @@ def delete_current_chat():
     win.set_focus()
     time.sleep(0.5)
 
-    # Find active chat by unique class b64fb9ae
     for elem in win.descendants(control_type="Hyperlink"):
         try:
             cls = elem.element_info.class_name or ""
@@ -159,7 +149,6 @@ def delete_current_chat():
                 pyautogui.moveTo(cx, cy, duration=0.5)
                 time.sleep(1)
 
-                # Click the three-dot button that appears on hover
                 win = get_deepseek_window()
                 for btn in win.descendants(control_type="Button"):
                     try:
@@ -171,7 +160,6 @@ def delete_current_chat():
                     except:
                         pass
 
-                # Click Delete in dropdown
                 win = get_deepseek_window()
                 for e in win.descendants(control_type="Text"):
                     try:
@@ -182,7 +170,6 @@ def delete_current_chat():
                     except:
                         pass
 
-                # Confirm deletion
                 win = get_deepseek_window()
                 for btn in win.descendants(control_type="Button"):
                     try:
@@ -206,10 +193,6 @@ def close_deepseek():
 
 
 def run(query: str, **kwargs) -> str:
-    """
-    Entry point called by queue_manager.
-    Receives query, returns reply as string.
-    """
     pythoncom.CoInitialize()
     try:
         open_deepseek()
